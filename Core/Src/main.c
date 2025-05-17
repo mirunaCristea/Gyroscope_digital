@@ -177,7 +177,7 @@ while (1)
     for (int i = 0; i < 3; ++i)
     {
         // 1. Citire ADC
-        HAL_ADC_Start(&hadc1); 
+        HAL_ADC_Start(&hadc1);
         HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
         adc_raw[i] = HAL_ADC_GetValue(&hadc1);
 

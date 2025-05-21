@@ -18,11 +18,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stdio.h"
-#include "math.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+
+#include <stdio.h>
+#include <math.h>
+
 
 /* USER CODE END Includes */
 
@@ -44,26 +46,24 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
-TIM_HandleTypeDef htim2;
-
 UART_HandleTypeDef huart1;
 
 PCD_HandleTypeDef hpcd_USB_FS;
 
 /* USER CODE BEGIN PV */
 
-uint8_t uart_buf[100]; // Buffer pentru transmiterea datelor prin UART ( pentru 100 de caractere)
+
 uint32_t adc_raw[3]={0,0,0}; // Buffer pentru citirea valorilor ADC (3 canale)
 float adc_volt[3]; // Buffer pentru conversia valorilor ADC in volti (3 canale)
 float adc_acc[3]; // Buffer pentru conversia valorilor ADC in acceleratie (3 canale)
 float unghi[3]={0,0,0}; // Buffer pentru unghiurile de inclinare (3 canale)
 float offset[3]={0,0,0}; // Buffer pentru offseturile ADC (3 canale)
-uint32_t time=0;
+
 float delta_t[3]={0,0,0}; // Buffer pentru timpul de citire a valorilor ADC (3 canale)
-float delta_acc[3]={0,0,0}; // Buffer pentru acceleratia de citire a valorilor ADC (3 canale) 
-uint32_t valoare_acc_anterior[3]={0,0,0}; // Buffer pentru acceleratia de citire a valorilor ADC (3 canale)
+
+
 float gyro[3]={0,0,0}; // Buffer pentru valorile gyroscopului (3 canale)
-float adc_acc_anterior[3]={0,0,0}; // Buffer pentru acceleratia de citire a valorilor ADC (3 canale)  
+  
 float unghi_anterior[3]={0,0,0}; // Buffer pentru unghiurile de inclinare (3 canale)
 
 
@@ -73,7 +73,6 @@ uint32_t time_prev[3]={0,0,0}; // Timpul anterior
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_TIM2_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USB_PCD_Init(void);
@@ -97,13 +96,17 @@ static void MX_USB_PCD_Init(void);
 
 
 
-// Functie pentru a trimite date prin UART
-// Aceasta functie este apelata de printf pentru a trimite datele prin UART
+// Redefinirea funcției printf pentru a funcționa cu HAL_UART_Transmit
+// Aceasta permite folosirea directă a printf în loc de HAL_UART_Transmit()
+// Utile pentru debug și transmiterea datelor senzorilor
+
 #ifdef __GNUC__
 #define PUTCHAR_PROTOTYPE int __io_putchar(int ch) 
 #else
 #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
 #endif
+
+
 
 PUTCHAR_PROTOTYPE
 {
@@ -117,7 +120,7 @@ int _write(int fd, char *ptr, int len)
   return len;
 }
 
-////SCRIS DE MINE
+
 /* USER CODE END 0 */
 
 /**
@@ -135,93 +138,117 @@ int main(void)
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+  HAL_Init(); // Inițializează HAL (Hardware Abstraction Layer)
 
   /* USER CODE BEGIN Init */
 
   /* USER CODE END Init */
 
   /* Configure the system clock */
-  SystemClock_Config();
+  SystemClock_Config(); // Configurează ceasul sistemului (PLL, frecvențe periferice)
 
   /* USER CODE BEGIN SysInit */
   
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_TIM2_Init();
-  MX_ADC1_Init();
-  MX_USART1_UART_Init();
-  MX_USB_PCD_Init();
+  MX_GPIO_Init();  // Inițializează pinii GPIO
+  MX_ADC1_Init();   // Inițializează convertorul analog-digital (ADC)
+  MX_USART1_UART_Init(); // Inițializează UART-ul pentru comunicare serială
+  MX_USB_PCD_Init(); // Inițializează USB 
   /* USER CODE BEGIN 2 */
   // Inițializezi offseturile cu 0
 
 
 
 //////SCRIS DE MINE
-printf("Salut din STM32 cu printf!\r\n");
-float test_value = 3.14159;
-printf("Test float: %.2f\r\n", test_value);
+
 //////SCRIS DE MINE
-
-
+for (int i = 0; i < 3; i++) offset[i] = 0;
+for (int n = 0; n < 100; n++) {
+    for (int i = 0; i < 3; i++) {
+        HAL_ADC_Start(&hadc1);
+        HAL_ADC_PollForConversion(&hadc1, 1);
+        offset[i] += HAL_ADC_GetValue(&hadc1);
+    }
+}
+for (int i = 0; i < 3; i++) 
+{offset[i] /= 100.0f;
+offset[i] = (offset[i] * 3.3f) / 4095.0f; // Conversie la voltaj
+printf("Offset %d: %.3f V\r\n", i, offset[i]);
+}
+offset[2]=(offset[0]+offset[1])/2.0f; // Offset pentru Z
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
- // ...existing code...
+  while (1)
+  {
 
-while (1)
-{
-    for (int i = 0; i < 3; ++i)
+
+
+
+
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+
+
+  for (int i = 0; i < 3; ++i)
     {
         // 1. Citire ADC
-        HAL_ADC_Start(&hadc1); 
-        HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-        adc_raw[i] = HAL_ADC_GetValue(&hadc1);
+        HAL_ADC_Start(&hadc1); // Incepe conversia ADC
+        HAL_ADC_PollForConversion(&hadc1, 1); // Asteapta conversia
+        adc_raw[i] = HAL_ADC_GetValue(&hadc1); // Citeste valoarea ADC
 
         // 2. Conversie la voltaj
-        adc_volt[i] = (adc_raw[i] * 3.3f) / 4095.0f;
+        adc_volt[i] = (adc_raw[i] * 3.3f) / 4095.0f; // Conversie la voltaj (cu referință 3.3V fiindcă ADC-ul e alimentat la 3.3V)
+
 
         // 3. Conversie la acceleratie (g)
-        adc_acc[i] = (adc_volt[i] - 1.65) / 0.33f;
+        adc_acc[i] = (adc_volt[i] - offset[i]) / 0.33f;  // Conversie la accelerație (g) – 0.33V/g  fiind rezolutia senzorului
+
 
         // 4. Calcul unghi (grade)
         unghi_anterior[i] = unghi[i];
         // Pentru X și Y folosește formula clasică de tilt (atenție la axa de referință!)
         if (i == 0)
-            unghi[i] = atan(adc_acc[0]/adc_acc[2]) * 180.0f / 3.1415f; // Roll
+            unghi[i] = atan2f(adc_acc[0],adc_acc[2]) * 180.0f / 3.1415f; // Roll (X)
         else if (i == 1)
-            unghi[i] = atan(adc_acc[1]/adc_acc[2]) * 180.0f / 3.1415f; // Pitch
+            unghi[i] = atan2f(adc_acc[1],adc_acc[2]) * 180.0f / 3.1415f; // Pitch (Y)
         
         // 5. Calcul timp (ms)
-        uint32_t time_now = HAL_GetTick();
-        delta_t[i] = time_now - time_prev[i];
-        time_prev[i] = time_now;
+        uint32_t time_now = HAL_GetTick(); // Obține timpul curent în milisecunde
+        delta_t[i] = time_now - time_prev[i]; // Calculează diferența de timp
+        time_prev[i] = time_now; // Salvează timpul curent pentru următoarea iterație
         
         HAL_Delay(100); // Delay pentru a evita citirea prea rapida a ADC-ului
+      
         // 6. Calcul viteza unghiulara (grade/secunda)
         if (delta_t[i] > 0)
-            gyro[i] = (unghi[i] - unghi_anterior[i]) / (delta_t[i] / 1000.0f);
+            gyro[i] = (unghi[i] - unghi_anterior[i]) / (delta_t[i] / 1000.0f); // Calcul viteza unghiulara (dps) 
 
         else
             gyro[i] = 0;
     }
 
     // Afisare CLARA
-   
-    printf("--------------------------------------------------\r\n");
     printf("RAW   -> X: %lu  Y: %lu  Z: %lu\r\n", adc_raw[0], adc_raw[1], adc_raw[2]);
+   
     printf("VOLT  -> X: %.3f V  Y: %.3f V  Z: %.3f V\r\n", adc_volt[0], adc_volt[1], adc_volt[2]);
+    
     printf("ACCEL -> X: %.3f g  Y: %.3f g  Z: %.3f g\r\n", adc_acc[0], adc_acc[1], adc_acc[2]);
-    printf("ANGLE -> X: %.2f°   Y: %.2f°   Z: %.2f°\r\n", unghi[0], unghi[1], unghi[2]);
-    printf("GYRO  -> X: %.2f dps Y: %.4f dps Z: %.4f dps\r\n", gyro[0], gyro[1], gyro[2]);
+    
+    printf("ANGLE -> X: %.2f grade   Y: %.2f grade   Z: %.2f grade\r\n", unghi[0], unghi[1], unghi[2]);
+    
+    printf("GYRO  -> X: %.2f grade/s Y: %.4f grade/s Z: %.4f grade/s\r\n", gyro[0], gyro[1], gyro[2]);
     printf("--------------------------------------------------\r\n");
 
-    HAL_Delay(1000); // Poți ajusta delay-ul după nevoie
-}
+    HAL_Delay(1000); 
 
+
+
+  }
   /* USER CODE END 3 */
 }
 
@@ -335,65 +362,6 @@ static void MX_ADC1_Init(void)
   /* USER CODE BEGIN ADC1_Init 2 */
 
   /* USER CODE END ADC1_Init 2 */
-
-}
-
-/**
-  * @brief TIM2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM2_Init(void)
-{
-
-  /* USER CODE BEGIN TIM2_Init 0 */
-
-  /* USER CODE END TIM2_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-
-  /* USER CODE BEGIN TIM2_Init 1 */
-
-  /* USER CODE END TIM2_Init 1 */
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 7199;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 100;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_OC_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_TIMING;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_OC_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM2_Init 2 */
-
-  /* USER CODE END TIM2_Init 2 */
-  HAL_TIM_MspPostInit(&htim2);
 
 }
 

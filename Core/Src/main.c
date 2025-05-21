@@ -206,7 +206,6 @@ offset[2]=(offset[0]+offset[1])/2.0f; // Offset pentru Z
 
 
         // 3. Conversie la acceleratie (g)
-        
         adc_acc[i] = (adc_volt[i] - offset[i]) / 0.33f;  // Conversie la accelerație (g) – 0.33V/g  fiind rezolutia senzorului
 
 
@@ -214,9 +213,9 @@ offset[2]=(offset[0]+offset[1])/2.0f; // Offset pentru Z
         unghi_anterior[i] = unghi[i];
         // Pentru X și Y folosește formula clasică de tilt (atenție la axa de referință!)
         if (i == 0)
-            unghi[i] = atan(adc_acc[0]/adc_acc[2]) * 180.0f / 3.1415f; // Roll (X)
+            unghi[i] = atan2f(adc_acc[0],adc_acc[2]) * 180.0f / 3.1415f; // Roll (X)
         else if (i == 1)
-            unghi[i] = atan(adc_acc[1]/adc_acc[2]) * 180.0f / 3.1415f; // Pitch (Y)
+            unghi[i] = atan2f(adc_acc[1],adc_acc[2]) * 180.0f / 3.1415f; // Pitch (Y)
         
         // 5. Calcul timp (ms)
         uint32_t time_now = HAL_GetTick(); // Obține timpul curent în milisecunde
@@ -224,6 +223,7 @@ offset[2]=(offset[0]+offset[1])/2.0f; // Offset pentru Z
         time_prev[i] = time_now; // Salvează timpul curent pentru următoarea iterație
         
         HAL_Delay(100); // Delay pentru a evita citirea prea rapida a ADC-ului
+      
         // 6. Calcul viteza unghiulara (grade/secunda)
         if (delta_t[i] > 0)
             gyro[i] = (unghi[i] - unghi_anterior[i]) / (delta_t[i] / 1000.0f); // Calcul viteza unghiulara (dps) 
@@ -233,19 +233,18 @@ offset[2]=(offset[0]+offset[1])/2.0f; // Offset pentru Z
     }
 
     // Afisare CLARA
-    HAL_Delay(1000);
     printf("RAW   -> X: %lu  Y: %lu  Z: %lu\r\n", adc_raw[0], adc_raw[1], adc_raw[2]);
    
     printf("VOLT  -> X: %.3f V  Y: %.3f V  Z: %.3f V\r\n", adc_volt[0], adc_volt[1], adc_volt[2]);
     
     printf("ACCEL -> X: %.3f g  Y: %.3f g  Z: %.3f g\r\n", adc_acc[0], adc_acc[1], adc_acc[2]);
-    HAL_Delay(100);
-    printf("ANGLE -> X: %.2f°   Y: %.2f°   Z: %.2f°\r\n", unghi[0], unghi[1], unghi[2]);
     
-    printf("GYRO  -> X: %.2f dps Y: %.4f dps Z: %.4f dps\r\n", gyro[0], gyro[1], gyro[2]);
+    printf("ANGLE -> X: %.2f grade   Y: %.2f grade   Z: %.2f grade\r\n", unghi[0], unghi[1], unghi[2]);
+    
+    printf("GYRO  -> X: %.2f grade/s Y: %.4f grade/s Z: %.4f grade/s\r\n", gyro[0], gyro[1], gyro[2]);
     printf("--------------------------------------------------\r\n");
 
-    HAL_Delay(1000); // Poți ajusta delay-ul după nevoie
+    HAL_Delay(1000); 
 
 
 
